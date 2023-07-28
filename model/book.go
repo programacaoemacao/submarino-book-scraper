@@ -21,13 +21,7 @@ type BookMetadata struct {
 	Languages   []string
 	Publisher   string
 	PublishDate string
-	Dimension   BookDimension
 	ISBN10      string
 	ISBN13      string
-}
-
-type BookDimension struct {
-	Height float64
-	Width  float64
-	Length float64
+	Edition     string
 }
