@@ -8,26 +8,33 @@ import (
 
 	"github.com/gocolly/colly"
 	"github.com/programacaoemacao/submarino-book-scraper/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func createNewFileScrapper(t *testing.T) *collyScraper {
+	scrapper := NewScraper()
+	transport := &http.Transport{}
+	transport.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+
+	c := colly.NewCollector()
+	c.WithTransport(transport)
+
+	scrapper.collector = c
+	return scrapper
+}
+
+func getAbsoluteProjectRootDir(t *testing.T) string {
+	os.Chdir("..")
+	dir, err := filepath.Abs("")
+	require.NoError(t, err)
+	return dir
+}
 
 func TestScrapeBook(t *testing.T) {
 
-	t.Run("Happy path -> Page was fetched", func(t *testing.T) {
-		scrapper := NewScraper()
-		transport := &http.Transport{}
-		transport.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
-
-		c := colly.NewCollector()
-		c.WithTransport(transport)
-
-		scrapper.collector = c
-
-		os.Chdir("..")
-		dir, err := filepath.Abs("")
-		if err != nil {
-			panic(err)
-		}
+	t.Run("Book have been collected", func(t *testing.T) {
+		scrapper := createNewFileScrapper(t)
+		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		expectedBook := &model.Book{
 			CoverImageURL: "https://images-americanas.b2w.io/produtos/132332550/imagens/livro-as-4-disciplinas-da-execucao-garanta-o-foco-nas-metas-crucialmente-importantes/132332550_1_large.jpg",
@@ -55,9 +62,19 @@ func TestScrapeBook(t *testing.T) {
 			},
 		}
 
-		url := "file://" + dir + "/test_files/example_book_1.html"
+		url := "file://" + projectRootDir + "/test_files/example_book_1.html"
 		gottenBook, err := scrapper.scrapeBook(url)
-		assert.NoError(t, err)
-		assert.Equal(t, expectedBook, gottenBook)
+		require.NoError(t, err)
+		require.Equal(t, expectedBook, gottenBook)
+	})
+
+	t.Run("Error when scrapping - URL not found", func(t *testing.T) {
+		scrapper := createNewFileScrapper(t)
+		projectRootDir := getAbsoluteProjectRootDir(t)
+
+		url := "file://" + projectRootDir + "/test_files/non_existent_file.html"
+		book, err := scrapper.scrapeBook(url)
+		require.Nil(t, book)
+		require.Error(t, err)
 	})
 }

@@ -143,5 +143,9 @@ func (c *collyScraper) scrapeBook(url string) (*model.Book, error) {
 
 	c.collector.Visit(url)
 
-	return book, functionError
+	if functionError != nil {
+		return nil, functionError
+	}
+
+	return book, nil
 }
