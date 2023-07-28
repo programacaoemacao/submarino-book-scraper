@@ -2,7 +2,6 @@ package scraper
 
 import (
 	"net/http"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -24,10 +23,59 @@ func createNewFileScrapper(t *testing.T) *collyScraper {
 }
 
 func getAbsoluteProjectRootDir(t *testing.T) string {
-	os.Chdir("..")
-	dir, err := filepath.Abs("")
+	dir, err := filepath.Abs("..")
 	require.NoError(t, err)
 	return dir
+}
+
+func TestScrapeBooksURLS(t *testing.T) {
+	t.Run("URLS have been collected", func(t *testing.T) {
+		scrapper := createNewFileScrapper(t)
+		projectRootDir := getAbsoluteProjectRootDir(t)
+
+		url := "file://" + projectRootDir + "/test_files/example_books_page.html"
+
+		expectedURLs := []string{
+			"/produto/5092532919?pfm_index=1&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/128275610?pfm_index=2&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/5565139?pfm_index=3&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/5397698670?pfm_index=4&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/111489056?pfm_index=5&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/6025457120?pfm_index=6&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/2064089075?pfm_index=7&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/153630?pfm_index=8&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/121595813?pfm_index=9&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/132600243?pfm_index=10&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/4514117521?pfm_index=11&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/134289911?pfm_index=12&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/130207667?pfm_index=13&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/134495820?pfm_index=14&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/3292511021?pfm_index=15&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/1230296492?pfm_index=16&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/134494966?pfm_index=17&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/128275871?pfm_index=18&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/5144598478?pfm_index=19&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/134496662?pfm_index=20&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/124113761?pfm_index=21&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/9779533?pfm_index=22&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/4463939532?pfm_index=23&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+			"/produto/4801212100?pfm_index=24&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
+		}
+
+		gottenURLs, err := scrapper.scrapeBooksURLS(url)
+		require.NoError(t, err)
+		require.Equal(t, gottenURLs, expectedURLs)
+	})
+
+	t.Run("Error when scraping - URL not found", func(t *testing.T) {
+		scrapper := createNewFileScrapper(t)
+		projectRootDir := getAbsoluteProjectRootDir(t)
+
+		url := "file://" + projectRootDir + "/test_files/non_existent_file.html"
+		urls, err := scrapper.scrapeBooksURLS(url)
+		require.Nil(t, urls)
+		require.Error(t, err)
+	})
 }
 
 func TestScrapeBook(t *testing.T) {
@@ -62,13 +110,14 @@ func TestScrapeBook(t *testing.T) {
 			},
 		}
 
+		println(projectRootDir)
 		url := "file://" + projectRootDir + "/test_files/example_book_1.html"
 		gottenBook, err := scrapper.scrapeBook(url)
 		require.NoError(t, err)
 		require.Equal(t, expectedBook, gottenBook)
 	})
 
-	t.Run("Error when scrapping - URL not found", func(t *testing.T) {
+	t.Run("Error when scraping - URL not found", func(t *testing.T) {
 		scrapper := createNewFileScrapper(t)
 		projectRootDir := getAbsoluteProjectRootDir(t)
 

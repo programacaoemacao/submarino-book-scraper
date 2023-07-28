@@ -25,7 +25,7 @@ func NewScraper() *collyScraper {
 }
 
 func (c *collyScraper) CollectData() ([]model.Book, error) {
-	urls := c.collectURLS()
+	urls, _ := c.scrapeBooksURLS("")
 	for _, url := range urls {
 		c.scrapeBook(url)
 	}
@@ -33,16 +33,26 @@ func (c *collyScraper) CollectData() ([]model.Book, error) {
 	return []model.Book{}, nil
 }
 
-func (c *collyScraper) collectURLS() []string {
+func (c *collyScraper) scrapeBooksURLS(booksPageURL string) ([]string, error) {
 	urls := []string{}
+	var functionError error
+
 	c.collector.OnXML(`//a[contains(@class, "inStockCard__Link")]`, func(x *colly.XMLElement) {
-		link := x.Attr("href")
-		urls = append(urls, link)
+		host := x.Request.URL.Host
+		urls = append(urls, host+x.Attr("href"))
 	})
 
-	c.collector.Visit("https://www.submarino.com.br/categoria/livros/ciencias-exatas")
+	c.collector.OnError(func(r *colly.Response, err error) {
+		functionError = err
+	})
 
-	return urls
+	c.collector.Visit(booksPageURL)
+
+	if functionError != nil {
+		return nil, functionError
+	}
+
+	return urls, nil
 }
 
 func (c *collyScraper) scrapeBook(url string) (*model.Book, error) {
