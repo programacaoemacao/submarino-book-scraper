@@ -50,38 +50,35 @@ func (c *collyScraper) scrapeBook(url string) (*model.Book, error) {
 	var functionError error
 
 	c.collector.OnXML(`//main//div[contains(@class,"image__WrapperImages")]//picture[contains(@class, "src__Picture")]/img`, func(x *colly.XMLElement) {
-		imageURL := x.Attr("src")
-		book.CoverImageURL = imageURL
+		book.CoverImageURL = x.Attr("src")
 	})
 
 	c.collector.OnXML(`//main//h1[contains(@class, "src__Title")]`, func(x *colly.XMLElement) {
-		title := x.Text
-		book.Title = strings.Replace(title, "livro - ", "", 1)
+		// The original title comes in lowercase
+		bookPrefixRegex := regexp.MustCompile(`(?m)^livro[\s\-]+`)
+		book.Title = bookPrefixRegex.ReplaceAllString(x.Text, "")
 	})
 
 	c.collector.OnXML(`//main//div[contains(@class, "src__BestPrice")]`, func(x *colly.XMLElement) {
-		price := x.Text
 		priceRegex := regexp.MustCompile(`(?m)\d+`)
-		matches := priceRegex.FindAllString(price, -1)
+		matches := priceRegex.FindAllString(x.Text, -1)
 		fullPriceInCents := strings.Join(matches, "")
-		priceInteger, err := strconv.Atoi(fullPriceInCents)
+		priceInCents, err := strconv.Atoi(fullPriceInCents)
 		if err == nil {
-			book.PriceInCents = uint64(priceInteger)
+			book.PriceInCents = uint64(priceInCents)
 		}
 	})
 
 	c.collector.OnXML(`//main//span[contains(@class, "src__RatingAverage")]`, func(x *colly.XMLElement) {
-		rating := x.Text
-		ratingFloat, err := strconv.ParseFloat(rating, 64)
+		ratingFloat, err := strconv.ParseFloat(x.Text, 64)
 		if err == nil {
 			book.Rating.Average = ratingFloat
 		}
 	})
 
 	c.collector.OnXML(`//main//div[contains(@class, "src__ProductInfo")]//span[contains(@class, "src__Count")]`, func(x *colly.XMLElement) {
-		TotalOfRatings := x.Text
 		totalOfRatingsRegex := regexp.MustCompile(`(?m)\d+`)
-		match := totalOfRatingsRegex.FindString(TotalOfRatings)
+		match := totalOfRatingsRegex.FindString(x.Text)
 		if match != "" {
 			totalOfRatingUint, err := strconv.ParseUint(match, 10, 64)
 			if err == nil {
@@ -90,20 +87,50 @@ func (c *collyScraper) scrapeBook(url string) (*model.Book, error) {
 		}
 	})
 
-	c.collector.OnXML(`//main//p[contains(@class, "src__Text")]/strong`, func(x *colly.XMLElement) {
-		paymentCondition := x.Text
-		book.PaymentCondition = paymentCondition
+	c.collector.OnXML(`//main//p[contains(@class, "src__Text-")]`, func(x *colly.XMLElement) {
+		nbSpaceRegex := regexp.MustCompile(`(?m)\p{Z}`)
+		withoutNBSpace := nbSpaceRegex.ReplaceAllString(x.Text, " ")
+		trimmed := strings.TrimSpace(withoutNBSpace)
+		book.PaymentCondition = trimmed
 	})
 
 	c.collector.OnXML(`//tr/td[text()="Autor"]/following-sibling::td`, func(x *colly.XMLElement) {
-		authors := strings.Split(x.Text, ",")
-		book.Authors = authors
+		book.Authors = strings.Split(x.Text, ",")
 	})
 
 	c.collector.OnXML(`//div[contains(@class, "description__HTMLContent")]`, func(x *colly.XMLElement) {
-		descriptionParts := x.ChildTexts(`//*`)
-		description := strings.Join(descriptionParts, "\n")
-		book.Description = description
+		book.Description = x.ChildText(`//*`)
+	})
+
+	c.collector.OnXML(`//tr/td[text()="Número de páginas"]/following-sibling::td`, func(x *colly.XMLElement) {
+		pages, err := strconv.ParseUint(x.Text, 10, 64)
+		if err == nil {
+			book.Metadata.Pages = uint(pages)
+		}
+	})
+
+	c.collector.OnXML(`//tr/td[text()="Idioma"]/following-sibling::td`, func(x *colly.XMLElement) {
+		book.Metadata.Languages = strings.Split(x.Text, ",")
+	})
+
+	c.collector.OnXML(`//tr/td[text()="Editora"]/following-sibling::td`, func(x *colly.XMLElement) {
+		book.Metadata.Publisher = x.Text
+	})
+
+	c.collector.OnXML(`//tr/td[text()="Data de Publicação"]/following-sibling::td`, func(x *colly.XMLElement) {
+		book.Metadata.PublishDate = x.Text
+	})
+
+	c.collector.OnXML(`//tr/td[text()="ISBN-10"]/following-sibling::td`, func(x *colly.XMLElement) {
+		book.Metadata.ISBN10 = x.Text
+	})
+
+	c.collector.OnXML(`//tr/td[text()="ISBN-13"]/following-sibling::td`, func(x *colly.XMLElement) {
+		book.Metadata.ISBN13 = x.Text
+	})
+
+	c.collector.OnXML(`//tr/td[text()="Edição"]/following-sibling::td`, func(x *colly.XMLElement) {
+		book.Metadata.Edition = x.Text
 	})
 
 	c.collector.OnError(func(r *colly.Response, err error) {
