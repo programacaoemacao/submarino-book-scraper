@@ -30,7 +30,8 @@ func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
 
 	url := mountURL(baseURL, limit, offset)
 
-	urls, _ := c.scrapeBooksURLS(url)
+	urls, _, _ := c.scrapeBooksURLS(url)
+
 	for _, url := range urls {
 		c.scrapeBook(url)
 	}
@@ -38,13 +39,25 @@ func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
 	return []model.Book{}, nil
 }
 
-func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, error) {
+func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, error) {
 	urls := []string{}
+	var totalOfItems uint
 	var functionError error
 
 	c.collector.OnXML(`//a[contains(@class, "inStockCard__Link")]`, func(x *colly.XMLElement) {
 		host := x.Request.URL.Host
 		urls = append(urls, host+x.Attr("href"))
+	})
+
+	c.collector.OnXML(`//span[contains(@class, "grid-area__TotalText")]`, func(x *colly.XMLElement) {
+		totalItemsRegex := regexp.MustCompile(`(?m)\d+`)
+		matches := totalItemsRegex.FindAllString(x.Text, -1)
+		totalItems := strings.Join(matches, "")
+		total, err := strconv.ParseUint(totalItems, 10, 64)
+		if err != nil || total == 0 {
+			functionError = fmt.Errorf("can't get total of pages")
+		}
+		totalOfItems = uint(total)
 	})
 
 	c.collector.OnError(func(r *colly.Response, err error) {
@@ -54,10 +67,10 @@ func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, error) {
 	c.collector.Visit(booksPageURL)
 
 	if functionError != nil {
-		return nil, functionError
+		return nil, 0, functionError
 	}
 
-	return urls, nil
+	return urls, totalOfItems, nil
 }
 
 func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {

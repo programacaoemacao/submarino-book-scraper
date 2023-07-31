@@ -62,8 +62,9 @@ func TestScrapeBooksURLS(t *testing.T) {
 			"/produto/4801212100?pfm_index=24&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
 		}
 
-		gottenURLs, err := scraper.scrapeBooksURLS(url)
+		gottenURLs, totalItems, err := scraper.scrapeBooksURLS(url)
 		require.NoError(t, err)
+		require.NotZero(t, totalItems)
 		require.Equal(t, gottenURLs, expectedURLs)
 	})
 
@@ -72,8 +73,20 @@ func TestScrapeBooksURLS(t *testing.T) {
 		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		url := "file://" + projectRootDir + "/test_files/non_existent_file.html"
-		urls, err := scraper.scrapeBooksURLS(url)
+		urls, totalItems, err := scraper.scrapeBooksURLS(url)
 		require.Nil(t, urls)
+		require.Zero(t, totalItems)
+		require.Error(t, err)
+	})
+
+	t.Run("Scraping - 0 total of items", func(t *testing.T) {
+		scraper := createNewMockBookScraper(t)
+		projectRootDir := getAbsoluteProjectRootDir(t)
+
+		url := "file://" + projectRootDir + "/test_files/no_total_items.html"
+		urls, totalItems, err := scraper.scrapeBooksURLS(url)
+		require.Nil(t, urls)
+		require.Zero(t, totalItems)
 		require.Error(t, err)
 	})
 }
