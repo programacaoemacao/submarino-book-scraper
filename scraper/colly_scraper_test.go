@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createNewFileScraper(t *testing.T) *collyScraper {
-	scraper := NewScraper()
+func createNewMockBookScraper(t *testing.T) *bookScraper {
+	scraper := NewBookScraper()
 	transport := &http.Transport{}
 	transport.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
 
@@ -28,20 +28,9 @@ func getAbsoluteProjectRootDir(t *testing.T) string {
 	return dir
 }
 
-func TestMountBooksPageURL(t *testing.T) {
-	t.Run("Test with some category, first page", func(t *testing.T) {
-		scraper := createNewFileScraper(t)
-
-		expectedURL := "https://www.submarino.com.br/categoria/livros/didaticos?limit=24&offset=0"
-		url := scraper.mountBooksPageURL("didaticos", defaultLimit, 0)
-
-		require.Equal(t, expectedURL, url)
-	})
-}
-
 func TestScrapeBooksURLS(t *testing.T) {
 	t.Run("URLS have been collected", func(t *testing.T) {
-		scraper := createNewFileScraper(t)
+		scraper := createNewMockBookScraper(t)
 		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		url := "file://" + projectRootDir + "/test_files/example_books_page.html"
@@ -79,7 +68,7 @@ func TestScrapeBooksURLS(t *testing.T) {
 	})
 
 	t.Run("Error when scraping - URL not found", func(t *testing.T) {
-		scraper := createNewFileScraper(t)
+		scraper := createNewMockBookScraper(t)
 		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		url := "file://" + projectRootDir + "/test_files/non_existent_file.html"
@@ -92,7 +81,7 @@ func TestScrapeBooksURLS(t *testing.T) {
 func TestScrapeBook(t *testing.T) {
 
 	t.Run("Book have been collected", func(t *testing.T) {
-		scraper := createNewFileScraper(t)
+		scraper := createNewMockBookScraper(t)
 		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		expectedBook := &model.Book{
@@ -129,7 +118,7 @@ func TestScrapeBook(t *testing.T) {
 	})
 
 	t.Run("Error when scraping - URL not found", func(t *testing.T) {
-		scraper := createNewFileScraper(t)
+		scraper := createNewMockBookScraper(t)
 		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		url := "file://" + projectRootDir + "/test_files/non_existent_file.html"

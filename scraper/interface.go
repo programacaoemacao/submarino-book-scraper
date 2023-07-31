@@ -1,9 +1,11 @@
 package scraper
 
-import (
-	"github.com/programacaoemacao/submarino-book-scraper/model"
-)
+import "github.com/programacaoemacao/submarino-book-scraper/model"
 
-type AmazonBookScrapper interface {
-	CollectData() ([]model.Book, error)
+type Item interface {
+	model.Book
+}
+
+type SubmarinoItemScraper[T Item] interface {
+	CollectData(baseURL string) ([]T, error)
 }

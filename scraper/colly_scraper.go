@@ -10,22 +10,27 @@ import (
 	"github.com/programacaoemacao/submarino-book-scraper/model"
 )
 
-type collyScraper struct {
+type bookScraper struct {
 	collector *colly.Collector
 }
 
-func NewScraper() *collyScraper {
+func NewBookScraper() *bookScraper {
 	collector := colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183"),
 	)
 
-	return &collyScraper{
+	return &bookScraper{
 		collector: collector,
 	}
 }
 
-func (c *collyScraper) CollectData() ([]model.Book, error) {
-	urls, _ := c.scrapeBooksURLS("")
+func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
+	limit := defaultLimit
+	offset := uint(0)
+
+	url := mountURL(baseURL, limit, offset)
+
+	urls, _ := c.scrapeBooksURLS(url)
 	for _, url := range urls {
 		c.scrapeBook(url)
 	}
@@ -33,14 +38,7 @@ func (c *collyScraper) CollectData() ([]model.Book, error) {
 	return []model.Book{}, nil
 }
 
-func (c *collyScraper) mountBooksPageURL(bookSection string, limit uint, offset uint) string {
-	args := []interface{}{
-		bookSection, limit, offset,
-	}
-	return fmt.Sprintf("https://www.submarino.com.br/categoria/livros/%s?limit=%d&offset=%d", args...)
-}
-
-func (c *collyScraper) scrapeBooksURLS(booksPageURL string) ([]string, error) {
+func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, error) {
 	urls := []string{}
 	var functionError error
 
@@ -62,7 +60,7 @@ func (c *collyScraper) scrapeBooksURLS(booksPageURL string) ([]string, error) {
 	return urls, nil
 }
 
-func (c *collyScraper) scrapeBook(url string) (*model.Book, error) {
+func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 	book := new(model.Book)
 	var functionError error
 
