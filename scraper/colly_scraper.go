@@ -33,6 +33,13 @@ func (c *collyScraper) CollectData() ([]model.Book, error) {
 	return []model.Book{}, nil
 }
 
+func (c *collyScraper) mountBooksPageURL(bookSection string, limit uint, offset uint) string {
+	args := []interface{}{
+		bookSection, limit, offset,
+	}
+	return fmt.Sprintf("https://www.submarino.com.br/categoria/livros/%s?limit=%d&offset=%d", args...)
+}
+
 func (c *collyScraper) scrapeBooksURLS(booksPageURL string) ([]string, error) {
 	urls := []string{}
 	var functionError error
