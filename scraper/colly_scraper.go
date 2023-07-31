@@ -17,6 +17,7 @@ type bookScraper struct {
 func NewBookScraper() *bookScraper {
 	collector := colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183"),
+		colly.Async(false),
 	)
 
 	return &bookScraper{
@@ -27,29 +28,46 @@ func NewBookScraper() *bookScraper {
 func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
 	limit := defaultLimit
 	offset := uint(0)
+	books := []model.Book{}
+	hasMoreItems := true
 
-	url := mountURL(baseURL, limit, offset)
+	for hasMoreItems {
+		bookListURL := mountURL(baseURL, limit, offset)
+		urls, totalItems, err := c.scrapeBooksURLS(bookListURL)
+		if err != nil {
+			return nil, err
+		}
 
-	urls, _, _ := c.scrapeBooksURLS(url)
+		fmt.Printf("limit: %d | offset: %d | total: %d\n", limit, offset, totalItems)
 
-	for _, url := range urls {
-		c.scrapeBook(url)
+		for _, url := range urls {
+			book, err := c.scrapeBook(url)
+			if err == nil {
+				books = append(books, *book)
+			}
+		}
+		offset += limit
+		hasMoreItems = totalItems > (offset + limit)
 	}
 
-	return []model.Book{}, nil
+	return books, nil
 }
 
 func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, error) {
+	collector := c.collector.Clone()
+
 	urls := []string{}
 	var totalOfItems uint
 	var functionError error
 
-	c.collector.OnXML(`//a[contains(@class, "inStockCard__Link")]`, func(x *colly.XMLElement) {
+	collector.OnXML(`//div[contains(@class, "inStockCard__Wrapper")]/a`, func(x *colly.XMLElement) {
 		host := x.Request.URL.Host
-		urls = append(urls, host+x.Attr("href"))
+		// It's necessary to set https protocol, otherwise, colly will use the http protocol, and it won't work
+		url := "https://" + host + x.Attr("href")
+		urls = append(urls, url)
 	})
 
-	c.collector.OnXML(`//span[contains(@class, "grid-area__TotalText")]`, func(x *colly.XMLElement) {
+	collector.OnXML(`//span[contains(@class, "grid-area__TotalText")]`, func(x *colly.XMLElement) {
 		totalItemsRegex := regexp.MustCompile(`(?m)\d+`)
 		matches := totalItemsRegex.FindAllString(x.Text, -1)
 		totalItems := strings.Join(matches, "")
@@ -60,11 +78,11 @@ func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, erro
 		totalOfItems = uint(total)
 	})
 
-	c.collector.OnError(func(r *colly.Response, err error) {
+	collector.OnError(func(r *colly.Response, err error) {
 		functionError = err
 	})
 
-	c.collector.Visit(booksPageURL)
+	collector.Visit(booksPageURL)
 
 	if functionError != nil {
 		return nil, 0, functionError
@@ -74,20 +92,22 @@ func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, erro
 }
 
 func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
+	collector := c.collector.Clone()
+
 	book := new(model.Book)
 	var functionError error
 
-	c.collector.OnXML(`//main//div[contains(@class,"image__WrapperImages")]//picture[contains(@class, "src__Picture")]/img`, func(x *colly.XMLElement) {
+	collector.OnXML(`//main//div[contains(@class,"image__WrapperImages")]//picture[contains(@class, "src__Picture")]/img`, func(x *colly.XMLElement) {
 		book.CoverImageURL = x.Attr("src")
 	})
 
-	c.collector.OnXML(`//main//h1[contains(@class, "src__Title")]`, func(x *colly.XMLElement) {
+	collector.OnXML(`//main//h1[contains(@class, "src__Title")]`, func(x *colly.XMLElement) {
 		// The original title comes in lowercase
 		bookPrefixRegex := regexp.MustCompile(`(?m)^livro[\s\-]+`)
 		book.Title = bookPrefixRegex.ReplaceAllString(x.Text, "")
 	})
 
-	c.collector.OnXML(`//main//div[contains(@class, "src__BestPrice")]`, func(x *colly.XMLElement) {
+	collector.OnXML(`//main//div[contains(@class, "src__BestPrice")]`, func(x *colly.XMLElement) {
 		priceRegex := regexp.MustCompile(`(?m)\d+`)
 		matches := priceRegex.FindAllString(x.Text, -1)
 		fullPriceInCents := strings.Join(matches, "")
@@ -97,14 +117,14 @@ func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 		}
 	})
 
-	c.collector.OnXML(`//main//span[contains(@class, "src__RatingAverage")]`, func(x *colly.XMLElement) {
+	collector.OnXML(`//main//span[contains(@class, "src__RatingAverage")]`, func(x *colly.XMLElement) {
 		ratingFloat, err := strconv.ParseFloat(x.Text, 64)
 		if err == nil {
 			book.Rating.Average = ratingFloat
 		}
 	})
 
-	c.collector.OnXML(`//main//div[contains(@class, "src__ProductInfo")]//span[contains(@class, "src__Count")]`, func(x *colly.XMLElement) {
+	collector.OnXML(`//main//div[contains(@class, "src__ProductInfo")]//span[contains(@class, "src__Count")]`, func(x *colly.XMLElement) {
 		totalOfRatingsRegex := regexp.MustCompile(`(?m)\d+`)
 		match := totalOfRatingsRegex.FindString(x.Text)
 		if match != "" {
@@ -115,61 +135,62 @@ func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 		}
 	})
 
-	c.collector.OnXML(`//main//p[contains(@class, "src__Text-")]`, func(x *colly.XMLElement) {
+	collector.OnXML(`//main//p[contains(@class, "src__Text-")]`, func(x *colly.XMLElement) {
 		nbSpaceRegex := regexp.MustCompile(`(?m)\p{Z}`)
 		withoutNBSpace := nbSpaceRegex.ReplaceAllString(x.Text, " ")
 		trimmed := strings.TrimSpace(withoutNBSpace)
 		book.PaymentCondition = trimmed
 	})
 
-	c.collector.OnXML(`//tr/td[text()="Autor"]/following-sibling::td`, func(x *colly.XMLElement) {
+	collector.OnXML(`//tr/td[text()="Autor"]/following-sibling::td`, func(x *colly.XMLElement) {
 		book.Authors = strings.Split(x.Text, ",")
 	})
 
-	c.collector.OnXML(`//div[contains(@class, "description__HTMLContent")]`, func(x *colly.XMLElement) {
+	collector.OnXML(`//div[contains(@class, "description__HTMLContent")]`, func(x *colly.XMLElement) {
 		book.Description = x.ChildText(`//*`)
 	})
 
-	c.collector.OnXML(`//tr/td[text()="Número de páginas"]/following-sibling::td`, func(x *colly.XMLElement) {
+	collector.OnXML(`//tr/td[text()="Número de páginas"]/following-sibling::td`, func(x *colly.XMLElement) {
 		pages, err := strconv.ParseUint(x.Text, 10, 64)
 		if err == nil {
 			book.Metadata.Pages = uint(pages)
 		}
 	})
 
-	c.collector.OnXML(`//tr/td[text()="Idioma"]/following-sibling::td`, func(x *colly.XMLElement) {
+	collector.OnXML(`//tr/td[text()="Idioma"]/following-sibling::td`, func(x *colly.XMLElement) {
 		book.Metadata.Languages = strings.Split(x.Text, ",")
 	})
 
-	c.collector.OnXML(`//tr/td[text()="Editora"]/following-sibling::td`, func(x *colly.XMLElement) {
+	collector.OnXML(`//tr/td[text()="Editora"]/following-sibling::td`, func(x *colly.XMLElement) {
 		book.Metadata.Publisher = x.Text
 	})
 
-	c.collector.OnXML(`//tr/td[text()="Data de Publicação"]/following-sibling::td`, func(x *colly.XMLElement) {
+	collector.OnXML(`//tr/td[text()="Data de Publicação"]/following-sibling::td`, func(x *colly.XMLElement) {
 		book.Metadata.PublishDate = x.Text
 	})
 
-	c.collector.OnXML(`//tr/td[text()="ISBN-10"]/following-sibling::td`, func(x *colly.XMLElement) {
+	collector.OnXML(`//tr/td[text()="ISBN-10"]/following-sibling::td`, func(x *colly.XMLElement) {
 		book.Metadata.ISBN10 = x.Text
 	})
 
-	c.collector.OnXML(`//tr/td[text()="ISBN-13"]/following-sibling::td`, func(x *colly.XMLElement) {
+	collector.OnXML(`//tr/td[text()="ISBN-13"]/following-sibling::td`, func(x *colly.XMLElement) {
 		book.Metadata.ISBN13 = x.Text
 	})
 
-	c.collector.OnXML(`//tr/td[text()="Edição"]/following-sibling::td`, func(x *colly.XMLElement) {
+	collector.OnXML(`//tr/td[text()="Edição"]/following-sibling::td`, func(x *colly.XMLElement) {
 		book.Metadata.Edition = x.Text
 	})
 
-	c.collector.OnError(func(r *colly.Response, err error) {
+	collector.OnError(func(r *colly.Response, err error) {
 		functionError = err
+		fmt.Println("error at scraping book on URL:", url)
 	})
 
-	c.collector.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting URL: ", url)
+	collector.OnRequest(func(r *colly.Request) {
+		fmt.Printf("scraping book on URL: %s\n", url)
 	})
 
-	c.collector.Visit(url)
+	collector.Visit(url)
 
 	if functionError != nil {
 		return nil, functionError
