@@ -2,9 +2,11 @@ package scraper
 
 import (
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/programacaoemacao/submarino-book-scraper/model"
@@ -30,6 +32,7 @@ func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
 	offset := uint(0)
 	books := []model.Book{}
 	hasMoreItems := true
+	currentBook := 0
 
 	for hasMoreItems {
 		bookListURL := mountURL(baseURL, limit, offset)
@@ -41,13 +44,17 @@ func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
 		fmt.Printf("limit: %d | offset: %d | total: %d\n", limit, offset, totalItems)
 
 		for _, url := range urls {
+			currentBook += 1
+			fmt.Printf("book %d of %d\n", currentBook, totalItems)
 			book, err := c.scrapeBook(url)
 			if err == nil {
 				books = append(books, *book)
 			}
+			c.randomDelay()
 		}
-		offset += limit
+
 		hasMoreItems = totalItems > (offset + limit)
+		offset += limit
 	}
 
 	return books, nil
@@ -197,4 +204,13 @@ func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 	}
 
 	return book, nil
+}
+
+func (c *bookScraper) randomDelay() {
+	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	n := rand.Intn(4) // n will be between 0 and 4
+	for i := n; i > 0; i-- {
+		fmt.Printf("sleeping %d seconds ...\n", i)
+		time.Sleep(time.Duration(1) * time.Second)
+	}
 }

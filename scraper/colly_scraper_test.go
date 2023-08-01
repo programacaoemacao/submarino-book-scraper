@@ -28,19 +28,6 @@ func getAbsoluteProjectRootDir(t *testing.T) string {
 	return dir
 }
 
-func TestCollectData(t *testing.T) {
-	t.Skip()
-	t.Run("Collect URL's without error", func(t *testing.T) {
-		scraper := NewBookScraper()
-
-		baseURL := "https://www.submarino.com.br/landingpage/trd-autoajuda?chave=trd-hi-at-generos-livros-blackfriday-autoajuda"
-		books, err := scraper.CollectData(baseURL)
-
-		require.NotNil(t, books)
-		require.NoError(t, err)
-	})
-}
-
 func TestScrapeBooksURLS(t *testing.T) {
 	t.Run("URLS have been collected", func(t *testing.T) {
 		scraper := createNewMockBookScraper(t)
