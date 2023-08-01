@@ -1,6 +1,6 @@
 //go:build integration
 
-package scraper
+package book
 
 import (
 	"testing"

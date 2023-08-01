@@ -1,4 +1,4 @@
-package scraper
+package book
 
 import (
 	"net/http"
@@ -23,7 +23,7 @@ func createNewMockBookScraper(t *testing.T) *bookScraper {
 }
 
 func getAbsoluteProjectRootDir(t *testing.T) string {
-	dir, err := filepath.Abs("..")
+	dir, err := filepath.Abs("../..")
 	require.NoError(t, err)
 	return dir
 }

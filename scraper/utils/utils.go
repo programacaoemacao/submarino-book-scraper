@@ -1,8 +1,8 @@
-package scraper
+package utils
 
 import "fmt"
 
-func mountURL(baseURL string, limit uint, offset uint) string {
+func MountURL(baseURL string, limit uint, offset uint) string {
 	args := []interface{}{
 		baseURL, limit, offset,
 	}

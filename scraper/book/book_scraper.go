@@ -1,4 +1,4 @@
-package scraper
+package book
 
 import (
 	"fmt"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/gocolly/colly"
 	"github.com/programacaoemacao/submarino-book-scraper/model"
+	"github.com/programacaoemacao/submarino-book-scraper/scraper/consts"
+	"github.com/programacaoemacao/submarino-book-scraper/scraper/utils"
 )
 
 type bookScraper struct {
@@ -28,14 +30,14 @@ func NewBookScraper() *bookScraper {
 }
 
 func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
-	limit := defaultLimit
+	limit := consts.DefaultLimit
 	offset := uint(0)
 	books := []model.Book{}
 	hasMoreItems := true
 	currentBook := 0
 
 	for hasMoreItems {
-		bookListURL := mountURL(baseURL, limit, offset)
+		bookListURL := utils.MountURL(baseURL, limit, offset)
 		urls, totalItems, err := c.scrapeBooksURLS(bookListURL)
 		if err != nil {
 			return nil, err
