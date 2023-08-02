@@ -25,3 +25,22 @@ type BookMetadata struct {
 	ISBN13      string   `json:"isbn_13"`
 	Edition     string   `json:"edition"`
 }
+
+/*
+Initializes a new book instance with default slices values.
+*/
+func NewBook() *Book {
+	/*
+		By default, slices are initalized as nil and when it was marshalled to json, the value of a
+		initialized slice will be `null`.
+
+		I prefer to initalize the values as empty string arrays to get a empty array in a json representation
+	*/
+	book := &Book{
+		Authors: []string{},
+		Metadata: BookMetadata{
+			Languages: []string{},
+		},
+	}
+	return book
+}

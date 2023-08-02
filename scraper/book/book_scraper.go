@@ -106,7 +106,7 @@ func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, erro
 func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 	collector := c.collector.Clone()
 
-	book := new(model.Book)
+	book := model.NewBook()
 	var functionError error
 
 	// Clearing the cookies
