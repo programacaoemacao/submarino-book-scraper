@@ -3,6 +3,7 @@ package book
 import (
 	"fmt"
 	"math/rand"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 
 type bookScraper struct {
 	collector *colly.Collector
+	cookies   []*http.Cookie
 }
 
 func NewBookScraper() *bookScraper {
@@ -92,6 +94,7 @@ func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, erro
 	})
 
 	collector.Visit(booksPageURL)
+	c.cookies = collector.Cookies(booksPageURL)
 
 	if functionError != nil {
 		return nil, 0, functionError
@@ -105,6 +108,9 @@ func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 
 	book := new(model.Book)
 	var functionError error
+
+	// Clearing the cookies
+	collector.SetCookies(url, []*http.Cookie{})
 
 	collector.OnXML(`//main//div[contains(@class,"image__WrapperImages")]//picture[contains(@class, "src__Picture")]/img`, func(x *colly.XMLElement) {
 		book.CoverImageURL = x.Attr("src")
@@ -192,12 +198,14 @@ func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 
 	collector.OnError(func(r *colly.Response, err error) {
 		functionError = err
-		fmt.Println("error at scraping book on URL:", url)
+		fmt.Println("error at scraping book:", err.Error())
 	})
 
 	collector.OnRequest(func(r *colly.Request) {
 		fmt.Printf("scraping book on URL: %s\n", url)
 	})
+
+	collector.SetCookies(url, c.cookies)
 
 	collector.Visit(url)
 
@@ -210,7 +218,7 @@ func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 
 func (c *bookScraper) randomDelay() {
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	n := rand.Intn(4) // n will be between 0 and 4
+	n := 1 + rand.Intn(5) // n will be between 1 and 5
 	for i := n; i > 0; i-- {
 		fmt.Printf("sleeping %d seconds ...\n", i)
 		time.Sleep(time.Duration(1) * time.Second)
