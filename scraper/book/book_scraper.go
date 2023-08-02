@@ -13,25 +13,30 @@ import (
 	"github.com/programacaoemacao/submarino-book-scraper/model"
 	"github.com/programacaoemacao/submarino-book-scraper/scraper/consts"
 	"github.com/programacaoemacao/submarino-book-scraper/scraper/utils"
+	"go.uber.org/zap"
 )
 
 type bookScraper struct {
 	collector *colly.Collector
 	cookies   []*http.Cookie
+	logger    *zap.SugaredLogger
 }
 
-func NewBookScraper() *bookScraper {
+func NewBookScraper(logger *zap.Logger) *bookScraper {
 	collector := colly.NewCollector(
 		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183"),
 		colly.Async(false),
 	)
 
+	sugaredLogger := logger.Sugar()
+
 	return &bookScraper{
 		collector: collector,
+		logger:    sugaredLogger,
 	}
 }
 
-func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
+func (bs *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
 	limit := consts.DefaultLimit
 	offset := uint(0)
 	books := []model.Book{}
@@ -40,21 +45,21 @@ func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
 
 	for hasMoreItems {
 		bookListURL := utils.MountURL(baseURL, limit, offset)
-		urls, totalItems, err := c.scrapeBooksURLS(bookListURL)
+		urls, totalItems, err := bs.scrapeBooksURLS(bookListURL)
 		if err != nil {
 			return nil, err
 		}
 
-		fmt.Printf("limit: %d | offset: %d | total: %d\n", limit, offset, totalItems)
+		bs.logger.Debugf("limit: %d | offset: %d | total: %d\n", limit, offset, totalItems)
 
 		for _, url := range urls {
 			currentBook += 1
-			fmt.Printf("book %d of %d\n", currentBook, totalItems)
-			book, err := c.scrapeBook(url)
+			bs.logger.Debugf("current progress: book %d of %d\n", currentBook, totalItems)
+			book, err := bs.scrapeBook(url)
 			if err == nil {
 				books = append(books, *book)
 			}
-			c.randomDelay()
+			bs.randomDelay()
 		}
 
 		hasMoreItems = totalItems > (offset + limit)
@@ -64,8 +69,8 @@ func (c *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
 	return books, nil
 }
 
-func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, error) {
-	collector := c.collector.Clone()
+func (bs *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, error) {
+	collector := bs.collector.Clone()
 
 	urls := []string{}
 	var totalOfItems uint
@@ -91,10 +96,11 @@ func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, erro
 
 	collector.OnError(func(r *colly.Response, err error) {
 		functionError = err
+		bs.logger.Errorln("error at scraping books page: ", err.Error())
 	})
 
 	collector.Visit(booksPageURL)
-	c.cookies = collector.Cookies(booksPageURL)
+	bs.cookies = collector.Cookies(booksPageURL)
 
 	if functionError != nil {
 		return nil, 0, functionError
@@ -103,8 +109,8 @@ func (c *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, erro
 	return urls, totalOfItems, nil
 }
 
-func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
-	collector := c.collector.Clone()
+func (bs *bookScraper) scrapeBook(url string) (*model.Book, error) {
+	collector := bs.collector.Clone()
 
 	book := model.NewBook()
 	var functionError error
@@ -198,14 +204,14 @@ func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 
 	collector.OnError(func(r *colly.Response, err error) {
 		functionError = err
-		fmt.Println("error at scraping book:", err.Error())
+		bs.logger.Errorln("error at scraping book:", err.Error())
 	})
 
 	collector.OnRequest(func(r *colly.Request) {
-		fmt.Printf("scraping book on URL: %s\n", url)
+		bs.logger.Infof("scraping book on URL: %s\n", url)
 	})
 
-	collector.SetCookies(url, c.cookies)
+	collector.SetCookies(url, bs.cookies)
 
 	collector.Visit(url)
 
@@ -216,11 +222,11 @@ func (c *bookScraper) scrapeBook(url string) (*model.Book, error) {
 	return book, nil
 }
 
-func (c *bookScraper) randomDelay() {
+func (bs *bookScraper) randomDelay() {
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	n := 1 + rand.Intn(5) // n will be between 1 and 5
 	for i := n; i > 0; i-- {
-		fmt.Printf("sleeping %d seconds ...\n", i)
+		bs.logger.Debugf("sleeping %d seconds ...\n", i)
 		time.Sleep(time.Duration(1) * time.Second)
 	}
 }

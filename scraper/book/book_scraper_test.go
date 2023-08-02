@@ -124,7 +124,6 @@ func TestScrapeBook(t *testing.T) {
 			},
 		}
 
-		println(projectRootDir)
 		url := "file://" + projectRootDir + "/test_files/example_book_1.html"
 		gottenBook, err := scraper.scrapeBook(url)
 		require.NoError(t, err)
