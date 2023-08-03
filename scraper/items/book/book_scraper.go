@@ -2,17 +2,13 @@ package book
 
 import (
 	"fmt"
-	"math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/programacaoemacao/submarino-book-scraper/model"
-	"github.com/programacaoemacao/submarino-book-scraper/scraper/consts"
-	"github.com/programacaoemacao/submarino-book-scraper/scraper/utils"
 	"go.uber.org/zap"
 )
 
@@ -28,51 +24,16 @@ func NewBookScraper(logger *zap.Logger) *bookScraper {
 		colly.Async(false),
 	)
 
-	sugaredLogger := logger.Sugar()
-
 	return &bookScraper{
 		collector: collector,
-		logger:    sugaredLogger,
+		logger:    logger.Sugar(),
 	}
 }
 
-func (bs *bookScraper) CollectData(baseURL string) ([]model.Book, error) {
-	limit := consts.DefaultLimit
-	offset := uint(0)
-	books := []model.Book{}
-	hasMoreItems := true
-	currentBook := 0
-
-	for hasMoreItems {
-		bookListURL := utils.MountURL(baseURL, limit, offset)
-		urls, totalItems, err := bs.scrapeBooksURLS(bookListURL)
-		if err != nil {
-			return nil, err
-		}
-
-		bs.logger.Debugf("limit: %d | offset: %d | total: %d\n", limit, offset, totalItems)
-
-		for _, url := range urls {
-			currentBook += 1
-			bs.logger.Debugf("current progress: book %d of %d\n", currentBook, totalItems)
-			book, err := bs.scrapeBook(url)
-			if err == nil {
-				books = append(books, *book)
-			}
-			bs.randomDelay()
-		}
-
-		hasMoreItems = totalItems > (offset + limit)
-		offset += limit
-	}
-
-	return books, nil
-}
-
-func (bs *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, error) {
+func (bs *bookScraper) CollectDetailURLs(url string) (urls []string, totalItems uint, err error) {
 	collector := bs.collector.Clone()
 
-	urls := []string{}
+	urls = []string{}
 	var totalOfItems uint
 	var functionError error
 
@@ -99,8 +60,8 @@ func (bs *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, err
 		bs.logger.Errorln("error at scraping books page: ", err.Error())
 	})
 
-	collector.Visit(booksPageURL)
-	bs.cookies = collector.Cookies(booksPageURL)
+	collector.Visit(url)
+	bs.cookies = collector.Cookies(url)
 
 	if functionError != nil {
 		return nil, 0, functionError
@@ -109,14 +70,14 @@ func (bs *bookScraper) scrapeBooksURLS(booksPageURL string) ([]string, uint, err
 	return urls, totalOfItems, nil
 }
 
-func (bs *bookScraper) scrapeBook(url string) (*model.Book, error) {
+func (bs *bookScraper) CollectDetail(detailURL string) (*model.Book, error) {
 	collector := bs.collector.Clone()
 
 	book := model.NewBook()
 	var functionError error
 
 	// Clearing the cookies
-	collector.SetCookies(url, []*http.Cookie{})
+	collector.SetCookies(detailURL, []*http.Cookie{})
 
 	collector.OnXML(`//main//div[contains(@class,"image__WrapperImages")]//picture[contains(@class, "src__Picture")]/img`, func(x *colly.XMLElement) {
 		book.CoverImageURL = x.Attr("src")
@@ -208,25 +169,14 @@ func (bs *bookScraper) scrapeBook(url string) (*model.Book, error) {
 	})
 
 	collector.OnRequest(func(r *colly.Request) {
-		bs.logger.Infof("scraping book on URL: %s\n", url)
+		bs.logger.Infof("scraping book on URL: %s\n", detailURL)
 	})
 
-	collector.SetCookies(url, bs.cookies)
-
-	collector.Visit(url)
+	collector.Visit(detailURL)
 
 	if functionError != nil {
 		return nil, functionError
 	}
 
 	return book, nil
-}
-
-func (bs *bookScraper) randomDelay() {
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	n := 1 + rand.Intn(5) // n will be between 1 and 5
-	for i := n; i > 0; i-- {
-		bs.logger.Debugf("sleeping %d seconds ...\n", i)
-		time.Sleep(time.Duration(1) * time.Second)
-	}
 }

@@ -8,10 +8,12 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/programacaoemacao/submarino-book-scraper/model"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func createNewMockBookScraper(t *testing.T) *bookScraper {
-	scraper := NewBookScraper()
+	logger, _ := zap.NewDevelopment()
+	scraper := NewBookScraper(logger)
 	transport := &http.Transport{}
 	transport.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
 
@@ -23,12 +25,12 @@ func createNewMockBookScraper(t *testing.T) *bookScraper {
 }
 
 func getAbsoluteProjectRootDir(t *testing.T) string {
-	dir, err := filepath.Abs("../..")
+	dir, err := filepath.Abs(".")
 	require.NoError(t, err)
 	return dir
 }
 
-func TestScrapeBooksURLS(t *testing.T) {
+func TestCollectDetailURLs(t *testing.T) {
 	t.Run("URLS have been collected", func(t *testing.T) {
 		scraper := createNewMockBookScraper(t)
 		projectRootDir := getAbsoluteProjectRootDir(t)
@@ -63,7 +65,7 @@ func TestScrapeBooksURLS(t *testing.T) {
 			"https:///produto/4801212100?pfm_index=24&pfm_page=category&pfm_pos=grid&pfm_type=category_page",
 		}
 
-		gottenURLs, totalItems, err := scraper.scrapeBooksURLS(url)
+		gottenURLs, totalItems, err := scraper.CollectDetailURLs(url)
 		require.NoError(t, err)
 		require.NotZero(t, totalItems)
 		require.Equal(t, gottenURLs, expectedURLs)
@@ -74,7 +76,7 @@ func TestScrapeBooksURLS(t *testing.T) {
 		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		url := "file://" + projectRootDir + "/test_files/non_existent_file.html"
-		urls, totalItems, err := scraper.scrapeBooksURLS(url)
+		urls, totalItems, err := scraper.CollectDetailURLs(url)
 		require.Nil(t, urls)
 		require.Zero(t, totalItems)
 		require.Error(t, err)
@@ -85,14 +87,14 @@ func TestScrapeBooksURLS(t *testing.T) {
 		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		url := "file://" + projectRootDir + "/test_files/no_total_items.html"
-		urls, totalItems, err := scraper.scrapeBooksURLS(url)
+		urls, totalItems, err := scraper.CollectDetailURLs(url)
 		require.Nil(t, urls)
 		require.Zero(t, totalItems)
 		require.Error(t, err)
 	})
 }
 
-func TestScrapeBook(t *testing.T) {
+func TestCollectDetail(t *testing.T) {
 
 	t.Run("Book have been collected", func(t *testing.T) {
 		scraper := createNewMockBookScraper(t)
@@ -125,7 +127,7 @@ func TestScrapeBook(t *testing.T) {
 		}
 
 		url := "file://" + projectRootDir + "/test_files/example_book_1.html"
-		gottenBook, err := scraper.scrapeBook(url)
+		gottenBook, err := scraper.CollectDetail(url)
 		require.NoError(t, err)
 		require.Equal(t, expectedBook, gottenBook)
 	})
@@ -135,7 +137,7 @@ func TestScrapeBook(t *testing.T) {
 		projectRootDir := getAbsoluteProjectRootDir(t)
 
 		url := "file://" + projectRootDir + "/test_files/non_existent_file.html"
-		book, err := scraper.scrapeBook(url)
+		book, err := scraper.CollectDetail(url)
 		require.Nil(t, book)
 		require.Error(t, err)
 	})
