@@ -4,7 +4,9 @@ go 1.20
 
 require (
 	github.com/gocolly/colly v1.2.0
+	github.com/jessevdk/go-flags v1.5.0
 	github.com/stretchr/testify v1.8.4
+	go.uber.org/zap v1.25.0
 )
 
 require (
@@ -22,8 +24,8 @@ require (
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/temoto/robotstxt v1.1.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.25.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
