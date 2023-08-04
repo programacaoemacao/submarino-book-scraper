@@ -8,6 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
+type mockDelayer struct {
+}
+
+func (md *mockDelayer) delay() {}
+
 type mockItemsScraper struct {
 }
 
@@ -51,18 +56,18 @@ func newMockedScraperStrategy(t *testing.T) *defaultScraper[model.Book] {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	ScraperStrategy := &mockItemsScraper{}
+	scraperStrategy := &mockItemsScraper{}
 
-	return NewDefaultScraper[model.Book](logger, ScraperStrategy)
+	return NewDefaultScraper[model.Book](logger, scraperStrategy)
 }
 
 func TestCollectData(t *testing.T) {
-	// TODO: Inject the delay function to avoid tests to wait 4 or 5 seconds to run
 	t.Run("Success", func(t *testing.T) {
-		ScraperStrategy := newMockedScraperStrategy(t)
+		scraperStrategy := newMockedScraperStrategy(t)
+		scraperStrategy.delayer = &mockDelayer{}
 
 		subscribers := []ScraperSubscriber[model.Book]{}
-		err := ScraperStrategy.CollectData("http://test.com", subscribers)
+		err := scraperStrategy.CollectData("http://test.com", subscribers)
 		require.NoError(t, err)
 	})
 }

@@ -1,9 +1,6 @@
 package scraper
 
 import (
-	"math/rand"
-	"time"
-
 	"github.com/programacaoemacao/submarino-book-scraper/model"
 	"github.com/programacaoemacao/submarino-book-scraper/scraper/consts"
 	"github.com/programacaoemacao/submarino-book-scraper/scraper/utils"
@@ -13,12 +10,14 @@ import (
 type defaultScraper[T model.ScrapingItems] struct {
 	logger          *zap.SugaredLogger
 	scraperStrategy ScraperStrategy[T]
+	delayer         delayer
 }
 
 func NewDefaultScraper[T model.ScrapingItems](logger *zap.Logger, scraperStrategy ScraperStrategy[T]) *defaultScraper[T] {
 	s := &defaultScraper[T]{
 		logger:          logger.Sugar(),
 		scraperStrategy: scraperStrategy,
+		delayer:         newRandomDelayer(logger),
 	}
 	return s
 }
@@ -34,6 +33,7 @@ func (ds *defaultScraper[T]) CollectData(baseURL string, subscribers []ScraperSu
 		urls, totalItems, err := ds.scraperStrategy.CollectDetailURLs(listURL)
 		// TODO: Implement a better error treatment
 		if err != nil {
+			ds.logger.Errorf("error getting urls to collect: %s", err.Error())
 			return err
 		}
 
@@ -47,7 +47,7 @@ func (ds *defaultScraper[T]) CollectData(baseURL string, subscribers []ScraperSu
 				// Error supressed for simplicity
 				_ = ds.notifySubscribers(subscribers, item)
 			}
-			ds.randomDelay()
+			ds.delayer.delay()
 		}
 
 		hasMoreItems = totalItems > (offset + limit)
@@ -63,13 +63,4 @@ func (ds *defaultScraper[T]) notifySubscribers(subscribers []ScraperSubscriber[T
 		_ = s.ProcessData(item)
 	}
 	return nil
-}
-
-func (ds *defaultScraper[T]) randomDelay() {
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	n := 1 + rand.Intn(5) // n will be between 1 and 5
-	for i := n; i > 0; i-- {
-		ds.logger.Debugf("sleeping %d seconds ...\n", i)
-		time.Sleep(time.Duration(1) * time.Second)
-	}
 }
