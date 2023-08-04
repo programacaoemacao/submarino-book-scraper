@@ -23,18 +23,18 @@ func NewDefaultScraper[T model.ScrapingItems](logger *zap.Logger, itemScraper It
 	return s
 }
 
-func (ds *defaultScraper[T]) CollectData(baseURL string) ([]T, error) {
+func (ds *defaultScraper[T]) CollectData(baseURL string, subscribers []ScraperSubscriber[T]) error {
 	limit := consts.DefaultLimit
 	offset := uint(0)
-	items := []T{}
 	hasMoreItems := true
 	currentItem := 0
 
 	for hasMoreItems {
 		listURL := utils.MountURL(baseURL, limit, offset)
 		urls, totalItems, err := ds.itemScraper.CollectDetailURLs(listURL)
+		// TODO: Implement a better error treatment
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		ds.logger.Debugf("limit: %d | offset: %d | total: %d\n", limit, offset, totalItems)
@@ -44,7 +44,8 @@ func (ds *defaultScraper[T]) CollectData(baseURL string) ([]T, error) {
 			ds.logger.Debugf("current progress - item %d of %d\n", currentItem, totalItems)
 			item, err := ds.itemScraper.CollectDetail(url)
 			if err == nil {
-				items = append(items, *item)
+				// Error supressed for simplicity
+				_ = ds.notifySubscribers(subscribers, item)
 			}
 			ds.randomDelay()
 		}
@@ -53,7 +54,15 @@ func (ds *defaultScraper[T]) CollectData(baseURL string) ([]T, error) {
 		offset += limit
 	}
 
-	return items, nil
+	return nil
+}
+
+func (ds *defaultScraper[T]) notifySubscribers(subscribers []ScraperSubscriber[T], item *T) error {
+	for _, s := range subscribers {
+		// Error supressed for simplicity
+		_ = s.ProcessData(item)
+	}
+	return nil
 }
 
 func (ds *defaultScraper[T]) randomDelay() {

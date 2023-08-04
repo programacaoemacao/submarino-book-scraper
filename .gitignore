@@ -1,1 +1,2 @@
 *.json
+!scraper/subscribers/*.json
