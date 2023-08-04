@@ -1,4 +1,4 @@
-package scrapertemplate
+package scraper
 
 import (
 	"math/rand"
@@ -11,14 +11,14 @@ import (
 )
 
 type defaultScraper[T model.ScrapingItems] struct {
-	logger      *zap.SugaredLogger
-	itemScraper ItemScraper[T]
+	logger          *zap.SugaredLogger
+	scraperStrategy ScraperStrategy[T]
 }
 
-func NewDefaultScraper[T model.ScrapingItems](logger *zap.Logger, itemScraper ItemScraper[T]) *defaultScraper[T] {
+func NewDefaultScraper[T model.ScrapingItems](logger *zap.Logger, scraperStrategy ScraperStrategy[T]) *defaultScraper[T] {
 	s := &defaultScraper[T]{
-		logger:      logger.Sugar(),
-		itemScraper: itemScraper,
+		logger:          logger.Sugar(),
+		scraperStrategy: scraperStrategy,
 	}
 	return s
 }
@@ -31,7 +31,7 @@ func (ds *defaultScraper[T]) CollectData(baseURL string, subscribers []ScraperSu
 
 	for hasMoreItems {
 		listURL := utils.MountURL(baseURL, limit, offset)
-		urls, totalItems, err := ds.itemScraper.CollectDetailURLs(listURL)
+		urls, totalItems, err := ds.scraperStrategy.CollectDetailURLs(listURL)
 		// TODO: Implement a better error treatment
 		if err != nil {
 			return err
@@ -42,7 +42,7 @@ func (ds *defaultScraper[T]) CollectData(baseURL string, subscribers []ScraperSu
 		for _, url := range urls {
 			currentItem += 1
 			ds.logger.Debugf("current progress - item %d of %d\n", currentItem, totalItems)
-			item, err := ds.itemScraper.CollectDetail(url)
+			item, err := ds.scraperStrategy.CollectDetail(url)
 			if err == nil {
 				// Error supressed for simplicity
 				_ = ds.notifySubscribers(subscribers, item)

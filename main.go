@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/programacaoemacao/submarino-book-scraper/model"
-	bookscraper "github.com/programacaoemacao/submarino-book-scraper/scraper/items/book"
-	scrapertemplate "github.com/programacaoemacao/submarino-book-scraper/scraper/scraper_template"
+	scraper "github.com/programacaoemacao/submarino-book-scraper/scraper/scraper"
+	bookstrategy "github.com/programacaoemacao/submarino-book-scraper/scraper/strategies/book"
 	subscriber "github.com/programacaoemacao/submarino-book-scraper/scraper/subscribers"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -16,14 +16,15 @@ func main() {
 
 	defer logger.Sync()
 
-	bookScraper := bookscraper.NewBookScraper(logger)
-	scraperTemplate := scrapertemplate.NewDefaultScraper[model.Book](logger, bookScraper)
+	bookStrategyScraper := bookstrategy.NewBookScraper(logger)
+	submarinoScraper := scraper.NewDefaultScraper[model.Book](logger, bookStrategyScraper)
 
 	url := "https://www.submarino.com.br/landingpage/trd-autoajuda?chave=trd-hi-at-generos-livros-blackfriday-autoajuda"
-	subscribers := []scrapertemplate.ScraperSubscriber[model.Book]{
+	subscribers := []scraper.ScraperSubscriber[model.Book]{
 		subscriber.NewJSONSubscriber[model.Book]("books.json", logger),
 	}
-	err := scraperTemplate.CollectData(url, subscribers)
+
+	err := submarinoScraper.CollectData(url, subscribers)
 	if err != nil {
 		logger.Sugar().Fatalf("can't collect all books data: %s", err.Error())
 	}

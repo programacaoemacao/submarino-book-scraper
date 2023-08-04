@@ -1,4 +1,4 @@
-package scrapertemplate
+package scraper
 
 import (
 	"testing"
@@ -47,22 +47,22 @@ func (m *mockItemsScraper) CollectDetail(detailURL string) (*model.Book, error) 
 	return book, nil
 }
 
-func newMockedItemScraper(t *testing.T) *defaultScraper[model.Book] {
+func newMockedScraperStrategy(t *testing.T) *defaultScraper[model.Book] {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	itemScraper := &mockItemsScraper{}
+	ScraperStrategy := &mockItemsScraper{}
 
-	return NewDefaultScraper[model.Book](logger, itemScraper)
+	return NewDefaultScraper[model.Book](logger, ScraperStrategy)
 }
 
 func TestCollectData(t *testing.T) {
 	// TODO: Inject the delay function to avoid tests to wait 4 or 5 seconds to run
 	t.Run("Success", func(t *testing.T) {
-		itemScraper := newMockedItemScraper(t)
+		ScraperStrategy := newMockedScraperStrategy(t)
 
 		subscribers := []ScraperSubscriber[model.Book]{}
-		err := itemScraper.CollectData("http://test.com", subscribers)
+		err := ScraperStrategy.CollectData("http://test.com", subscribers)
 		require.NoError(t, err)
 	})
 }
