@@ -9,6 +9,7 @@ import (
 
 	"github.com/gocolly/colly"
 	"github.com/programacaoemacao/submarino-book-scraper/model"
+	unicode "github.com/programacaoemacao/submarino-book-scraper/scraper/unicode"
 	"go.uber.org/zap"
 )
 
@@ -86,7 +87,7 @@ func (bs *bookScraper) CollectDetail(detailURL string) (*model.Book, error) {
 	collector.OnXML(`//main//h1[contains(@class, "src__Title")]`, func(x *colly.XMLElement) {
 		// The original title comes in lowercase
 		bookPrefixRegex := regexp.MustCompile(`(?m)^livro[\s\-]+`)
-		book.Title = bookPrefixRegex.ReplaceAllString(x.Text, "")
+		book.Title = unicode.Normalize(bookPrefixRegex.ReplaceAllString(x.Text, ""))
 	})
 
 	collector.OnXML(`//main//div[contains(@class, "src__BestPrice")]`, func(x *colly.XMLElement) {
@@ -121,15 +122,19 @@ func (bs *bookScraper) CollectDetail(detailURL string) (*model.Book, error) {
 		nbSpaceRegex := regexp.MustCompile(`(?m)\p{Z}`)
 		withoutNBSpace := nbSpaceRegex.ReplaceAllString(x.Text, " ")
 		trimmed := strings.TrimSpace(withoutNBSpace)
-		book.PaymentCondition = trimmed
+		book.PaymentCondition = unicode.Normalize(trimmed)
 	})
 
 	collector.OnXML(`//tr/td[text()="Autor"]/following-sibling::td`, func(x *colly.XMLElement) {
-		book.Authors = strings.Split(x.Text, ",")
+		authors := strings.Split(x.Text, ",")
+		for i := 0; i < len(authors); i++ {
+			authors[i] = unicode.Normalize(authors[i])
+		}
+		book.Authors = authors
 	})
 
 	collector.OnXML(`//div[contains(@class, "description__HTMLContent")]`, func(x *colly.XMLElement) {
-		book.Description = x.ChildText(`//*`)
+		book.Description = unicode.Normalize(x.ChildText(`//*`))
 	})
 
 	collector.OnXML(`//tr/td[text()="Número de páginas"]/following-sibling::td`, func(x *colly.XMLElement) {
@@ -140,27 +145,31 @@ func (bs *bookScraper) CollectDetail(detailURL string) (*model.Book, error) {
 	})
 
 	collector.OnXML(`//tr/td[text()="Idioma"]/following-sibling::td`, func(x *colly.XMLElement) {
-		book.Metadata.Languages = strings.Split(x.Text, ",")
+		languages := strings.Split(x.Text, ",")
+		for i := 0; i < len(languages); i++ {
+			languages[i] = unicode.Normalize(languages[i])
+		}
+		book.Metadata.Languages = languages
 	})
 
 	collector.OnXML(`//tr/td[text()="Editora"]/following-sibling::td`, func(x *colly.XMLElement) {
-		book.Metadata.Publisher = x.Text
+		book.Metadata.Publisher = unicode.Normalize(x.Text)
 	})
 
 	collector.OnXML(`//tr/td[text()="Data de Publicação"]/following-sibling::td`, func(x *colly.XMLElement) {
-		book.Metadata.PublishDate = x.Text
+		book.Metadata.PublishDate = unicode.Normalize(x.Text)
 	})
 
 	collector.OnXML(`//tr/td[text()="ISBN-10"]/following-sibling::td`, func(x *colly.XMLElement) {
-		book.Metadata.ISBN10 = x.Text
+		book.Metadata.ISBN10 = unicode.Normalize(x.Text)
 	})
 
 	collector.OnXML(`//tr/td[text()="ISBN-13"]/following-sibling::td`, func(x *colly.XMLElement) {
-		book.Metadata.ISBN13 = x.Text
+		book.Metadata.ISBN13 = unicode.Normalize(x.Text)
 	})
 
 	collector.OnXML(`//tr/td[text()="Edição"]/following-sibling::td`, func(x *colly.XMLElement) {
-		book.Metadata.Edition = x.Text
+		book.Metadata.Edition = unicode.Normalize(x.Text)
 	})
 
 	collector.OnError(func(r *colly.Response, err error) {
