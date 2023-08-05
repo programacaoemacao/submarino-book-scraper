@@ -169,7 +169,7 @@ func (bs *bookScraper) CollectDetail(detailURL string) (*model.Book, error) {
 	})
 
 	collector.OnRequest(func(r *colly.Request) {
-		bs.logger.Infof("scraping book on URL: %s\n", detailURL)
+		bs.logger.Infof("scraping book on URL: %s", detailURL)
 	})
 
 	collector.Visit(detailURL)

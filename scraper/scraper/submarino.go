@@ -37,11 +37,11 @@ func (ds *defaultScraper[T]) CollectData(baseURL string, subscribers []ScraperSu
 			return err
 		}
 
-		ds.logger.Debugf("limit: %d | offset: %d | total: %d\n", limit, offset, totalItems)
+		ds.logger.Debugf("limit: %d | offset: %d | total: %d", limit, offset, totalItems)
 
 		for _, url := range urls {
 			currentItem += 1
-			ds.logger.Debugf("current progress - item %d of %d\n", currentItem, totalItems)
+			ds.logger.Debugf("current progress - item %d of %d", currentItem, totalItems)
 			item, err := ds.scraperStrategy.CollectDetail(url)
 			if err == nil {
 				// Error supressed for simplicity
