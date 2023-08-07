@@ -7,7 +7,7 @@ import (
 	"github.com/programacaoemacao/submarino-book-scraper/model"
 	scraper "github.com/programacaoemacao/submarino-book-scraper/scraper/scraper"
 	bookstrategy "github.com/programacaoemacao/submarino-book-scraper/scraper/strategies/book"
-	subscriber "github.com/programacaoemacao/submarino-book-scraper/scraper/subscribers"
+	scrapersubscriber "github.com/programacaoemacao/submarino-book-scraper/scraper/subscribers"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -27,8 +27,13 @@ func main() {
 	bookStrategyScraper := bookstrategy.NewBookScraper(logger)
 	submarinoScraper := scraper.NewDefaultScraper[model.Book](logger, bookStrategyScraper)
 
+	outputSubscriber, err := scrapersubscriber.NewSubscriber[model.Book](opts.Output, logger)
+	if err != nil {
+		logger.Sugar().Fatalf("can't create optput subscriber: %s", err.Error())
+	}
+
 	subscribers := []scraper.ScraperSubscriber[model.Book]{
-		subscriber.NewJSONSubscriber[model.Book](opts.Output, logger),
+		outputSubscriber,
 	}
 
 	err = submarinoScraper.CollectData(opts.URLToCollect, subscribers)

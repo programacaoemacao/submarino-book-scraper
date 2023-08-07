@@ -66,7 +66,7 @@ func TestProcessData(t *testing.T) {
 			},
 		}
 
-		subscriber := NewJSONSubscriber[model.Book](jsonPath, newLogger())
+		subscriber := newJSONSubscriber[model.Book](jsonPath, newLogger())
 		err := subscriber.ProcessData(book)
 
 		require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestProcessData(t *testing.T) {
 			},
 		}
 
-		subscriber := NewJSONSubscriber[model.Book](jsonPath, newLogger())
+		subscriber := newJSONSubscriber[model.Book](jsonPath, newLogger())
 		err := subscriber.ProcessData(book)
 
 		require.NoError(t, err)

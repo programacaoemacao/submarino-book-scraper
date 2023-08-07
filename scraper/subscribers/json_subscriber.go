@@ -13,7 +13,7 @@ type jsonSubscriber[T model.ScrapingItems] struct {
 	logger   *zap.SugaredLogger
 }
 
-func NewJSONSubscriber[T model.ScrapingItems](filePath string, logger *zap.Logger) *jsonSubscriber[T] {
+func newJSONSubscriber[T model.ScrapingItems](filePath string, logger *zap.Logger) *jsonSubscriber[T] {
 	return &jsonSubscriber[T]{
 		filePath: filePath,
 		logger:   logger.Sugar(),
