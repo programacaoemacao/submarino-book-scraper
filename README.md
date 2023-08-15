@@ -1,6 +1,10 @@
-# submarino-products-scraper
+# submarino-books-scraper
 
-Submarino products scraper made in go.
+Submarino book scraper made in go.
+
+> **CAUTION**: This scraper doesn't work very well. The scraped website has a protection against bot's, so, it will work eventually. A better approach will be use a [selenium](https://selenium-python.readthedocs.io/index.html) to simulate "human interaction".
+
+> **TIP**: Use this repository to learn about code, not scraping best practices.
 
 This scraper was made using [Colly](https://github.com/gocolly/colly). It was implemented using a streamming approach (with [Observer pattern](https://refactoring.guru/design-patterns/observer)), so, you can stop the execution when you want, and the data won't be loss. 
 
@@ -32,7 +36,7 @@ Execution flags:
 
 You can run the examples using make:
 
-* Run example with best sellers books
+* Run example with best sellers books (Caution - It can lead to a `403 - Forbidden error`)
     ```shell
     $ make run-example-best-sellers-books
     ```
@@ -60,3 +64,4 @@ You can choose any URL that respect this products grid layout:
 ## Known errors
 
 * Sometimes we'll get a `403` from scraped website and the execution will stop.
+![Submarino page with 403 error](./docs/img/error_403.png "Sumbmarino error page")
