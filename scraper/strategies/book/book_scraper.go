@@ -15,13 +15,11 @@ import (
 
 type bookScraper struct {
 	collector *colly.Collector
-	cookies   []*http.Cookie
 	logger    *zap.SugaredLogger
 }
 
 func NewBookScraper(logger *zap.Logger) *bookScraper {
 	collector := colly.NewCollector(
-		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183"),
 		colly.Async(false),
 	)
 
@@ -61,8 +59,23 @@ func (bs *bookScraper) CollectDetailURLs(url string) (urls []string, totalItems 
 		bs.logger.Errorln("error at scraping books page: ", err.Error())
 	})
 
-	collector.Visit(url)
-	bs.cookies = collector.Cookies(url)
+	headers := http.Header{}
+	headers.Add("authority", "www.submarino.com.br")
+	headers.Add("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	headers.Add("accept-language", "pt-BR,pt;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
+	headers.Add("cache-control", "max-age=0")
+	headers.Add("if-none-match", "W/\"8d725-iqoXyTaY9BbpvmYyF1Fz/arZKws\"")
+	headers.Add("sec-ch-ua", "\"Not/A)Brand\";v=\"99\", \"Microsoft Edge\";v=\"115\", \"Chromium\";v=\"115\"")
+	headers.Add("sec-ch-ua-mobile", "?0")
+	headers.Add("sec-ch-ua-platform", "\"Windows\"")
+	headers.Add("sec-fetch-dest", "document")
+	headers.Add("sec-fetch-mode", "navigate")
+	headers.Add("sec-fetch-site", "none")
+	headers.Add("sec-fetch-user", "?1")
+	headers.Add("upgrade-insecure-requests", "1")
+	headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.188")
+
+	functionError = collector.Request(http.MethodGet, url, nil, colly.NewContext(), headers)
 
 	if functionError != nil {
 		return nil, 0, functionError
@@ -76,9 +89,6 @@ func (bs *bookScraper) CollectDetail(detailURL string) (*model.Book, error) {
 
 	book := model.NewBook()
 	var functionError error
-
-	// Clearing the cookies
-	collector.SetCookies(detailURL, []*http.Cookie{})
 
 	collector.OnXML(`//main//div[contains(@class,"image__WrapperImages")]//picture[contains(@class, "src__Picture")]/img`, func(x *colly.XMLElement) {
 		book.CoverImageURL = x.Attr("src")
@@ -181,7 +191,23 @@ func (bs *bookScraper) CollectDetail(detailURL string) (*model.Book, error) {
 		bs.logger.Infof("scraping book on URL: %s", detailURL)
 	})
 
-	collector.Visit(detailURL)
+	headers := http.Header{}
+	headers.Add("authority", "www.submarino.com.br")
+	headers.Add("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	headers.Add("accept-language", "pt-BR,pt;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
+	headers.Add("cache-control", "max-age=0")
+	headers.Add("if-none-match", "W/\"8d725-iqoXyTaY9BbpvmYyF1Fz/arZKws\"")
+	headers.Add("sec-ch-ua", "\"Not/A)Brand\";v=\"99\", \"Microsoft Edge\";v=\"115\", \"Chromium\";v=\"115\"")
+	headers.Add("sec-ch-ua-mobile", "?0")
+	headers.Add("sec-ch-ua-platform", "\"Windows\"")
+	headers.Add("sec-fetch-dest", "document")
+	headers.Add("sec-fetch-mode", "navigate")
+	headers.Add("sec-fetch-site", "none")
+	headers.Add("sec-fetch-user", "?1")
+	headers.Add("upgrade-insecure-requests", "1")
+	headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.188")
+
+	functionError = collector.Request(http.MethodGet, detailURL, nil, colly.NewContext(), headers)
 
 	if functionError != nil {
 		return nil, functionError
